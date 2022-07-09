@@ -6,7 +6,7 @@ from typing import Union, Iterable, Tuple, List
 
 import pytest
 
-from relic.chunky import v1_1, v3_1, MagicWord, Version
+from relic.chunky import v1, v3_1, MagicWord, Version
 from relic.chunky.protocols import API
 
 
@@ -100,14 +100,14 @@ def _helper(src_key: str, version: Version, exts: List[str], max_tests: int = No
 KNOWN_EXTS = ["fda", "sgm", "whm", "wtp", "rgd", "rml", "rsh", "rtx", "sgb", "tmp", "whe", "model"]
 _update_implicit_file_sources("v1_1")
 _update_implicit_file_sources("v3_1")
-v1_1Files = _helper("v1_1", v1_1.version, KNOWN_EXTS, max_tests=32)
+v1_1Files = _helper("v1_1", v1.version, KNOWN_EXTS, max_tests=32)
 v3_1Files = _helper("v3_1", v3_1.version, KNOWN_EXTS, max_tests=0) # TODO find files that use v3_1 format
 
 
 class TestV1_1(APITests):
     @pytest.fixture()
     def api(self) -> API:
-        return v1_1.API
+        return v1.API
 
     @pytest.mark.parametrize(["buffer"], [*v1_1Files])
     def test_read(self, buffer: Union[bytes, str], api: API):

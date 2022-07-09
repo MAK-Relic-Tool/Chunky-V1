@@ -4,8 +4,8 @@ from abc import ABC
 from dataclasses import dataclass
 from typing import Type
 
-from relic.chunky import _abc
-from relic.chunky._core import Version
+from relic.chunky.core import _abc
+from relic.chunky.core._core import Version
 
 version = Version(1)
 

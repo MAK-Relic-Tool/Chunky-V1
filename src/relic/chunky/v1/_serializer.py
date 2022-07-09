@@ -3,13 +3,13 @@ from typing import BinaryIO, Union, List
 
 from serialization_tools.structx import Struct
 
-from relic.chunky import _abc
-from relic.chunky._abc import _ChunkLazyInfo
-from relic.chunky._core import ChunkType, MagicWord, Version, ChunkFourCC
-from relic.chunky._serializer import ChunkTypeSerializer, chunk_type_serializer, chunk_cc_serializer, ChunkFourCCSerializer
-from relic.chunky.errors import ChunkNameError, VersionMismatchError
-from relic.chunky.protocols import StreamSerializer
-from relic.chunky.v3_1.core import ChunkMeta, FolderChunk, RawDataChunk, Chunky, ChunkyMetadata, version as version_v3_1
+from relic.chunky.core import _abc
+from relic.chunky.core._abc import _ChunkLazyInfo
+from relic.chunky.core._core import ChunkType, MagicWord, Version, ChunkFourCC
+from relic.chunky.core._serializer import ChunkTypeSerializer, chunk_type_serializer, ChunkFourCCSerializer, chunk_cc_serializer
+from relic.chunky.core.errors import ChunkNameError, VersionMismatchError
+from relic.chunky.core.protocols import StreamSerializer
+from relic.chunky.v1.core import ChunkMeta, RawDataChunk, FolderChunk, Chunky, version as version_v1_1
 from relic.core.errors import MismatchError
 
 
@@ -20,37 +20,36 @@ class _ChunkHeader:
     version: int
     size: int
     name: str
-    unk_a: int
-    unk_b: int
 
 
 @dataclass
 class ChunkHeaderSerializer(StreamSerializer[_ChunkHeader]):
     chunk_type_serializer: ChunkTypeSerializer
-    chunk_cc_serializer:ChunkFourCCSerializer
+    chunk_cc_serializer: ChunkFourCCSerializer
     layout: Struct
 
     def unpack(self, stream: BinaryIO) -> _ChunkHeader:
         chunk_type = self.chunk_type_serializer.unpack(stream)
         chunk_cc = self.chunk_cc_serializer.unpack(stream)
-        version, size, name_size, unk_a, unk_b = self.layout.unpack_stream(stream)
+        version, size, name_size = self.layout.unpack_stream(stream)
         name_buffer = stream.read(name_size)
         try:
             name = name_buffer.rstrip(b"\0").decode("ascii")
         except UnicodeDecodeError as e:
             raise ChunkNameError(name_buffer) from e
-        return _ChunkHeader(chunk_type, chunk_cc, version, size, name, unk_a, unk_b)
+        return _ChunkHeader(chunk_type, chunk_cc, version, size, name)
 
     def pack(self, stream: BinaryIO, packable: _ChunkHeader) -> int:
         written = 0
         written += self.chunk_type_serializer.pack(stream, packable.type)
-        written += self.chunk_cc_serializer.pack(stream, packable.cc)
         name_buffer = packable.name.encode("ascii")
-        args = packable.version, packable.type, len(name_buffer), packable.unk_a, packable.unk_b
+        args = packable.cc, packable.version, packable.type, len(name_buffer)
         written += self.layout.pack(args)
         written += stream.write(name_buffer)
         return written
 
+
+chunk_header_serializer = ChunkHeaderSerializer(chunk_type_serializer, chunk_cc_serializer, Struct("<3L"))
 
 AnyRawChunk = Union[FolderChunk, RawDataChunk]
 
@@ -61,21 +60,22 @@ class RawChunkSerializer(StreamSerializer[AnyRawChunk]):
 
     @staticmethod
     def _unpack_data(stream: BinaryIO, header: _ChunkHeader):
-        metadata = ChunkMeta(header.name, header.version, header.unk_a, header.unk_b)
+        metadata = ChunkMeta(header.name, header.version)
         start, size = stream.tell(), header.size
         lazy_info = _ChunkLazyInfo(start, size, stream)
-        stream.seek(size, 1)  # advance stream
+        stream.seek(size,1)
         return _abc.RawDataChunk(header.cc, metadata, None, None, lazy_info)
 
     def _pack_data(self, stream: BinaryIO, chunk: RawDataChunk):
-        header = _ChunkHeader(chunk.type, chunk.fourCC, chunk.metadata.version, len(chunk.data), chunk.metadata.name, chunk.metadata.unk_a, chunk.metadata.unk_b)
+        data = chunk.data
+        header = _ChunkHeader(chunk.type, chunk.fourCC, chunk.metadata.version, len(data), chunk.metadata.name)
         written = 0
         written += self.header_serializer.pack(stream, header)
-        written += stream.write(chunk.data)
+        written += stream.write(data)
         return written
 
     def _unpack_folder(self, stream: BinaryIO, header: _ChunkHeader):
-        metadata = ChunkMeta(header.name, header.version, header.unk_a, header.unk_b)
+        metadata = ChunkMeta(header.name, header.version)
         start, size = stream.tell(), header.size
         sub_folders = []
         data_chunks = []
@@ -90,13 +90,13 @@ class RawChunkSerializer(StreamSerializer[AnyRawChunk]):
             else:
                 raise NotImplementedError
         if start + size != stream.tell():
-            raise MismatchError("Header Size",stream.tell(),start + size)
+            raise MismatchError("Header Size",stream.tell(),start+size)
 
         return root
 
     def _pack_folder(self, stream: BinaryIO, chunk: FolderChunk):
         jump_back = stream.tell()
-        header = _ChunkHeader(chunk.type.value, chunk.fourCC, chunk.metadata.version, 0, chunk.metadata.name, chunk.metadata.unk_a, chunk.metadata.unk_b)
+        header = _ChunkHeader(chunk.type.value, chunk.fourCC, chunk.metadata.version, 0, chunk.metadata.name)
         written = 0
         written += self.header_serializer.pack(stream, header)
         size = 0
@@ -121,8 +121,6 @@ class RawChunkSerializer(StreamSerializer[AnyRawChunk]):
             return self._unpack_data(stream, header)
         elif header.type == ChunkType.Folder:
             return self._unpack_folder(stream, header)
-        else:
-            raise NotImplementedError
 
     def pack(self, stream: BinaryIO, packable: AnyRawChunk) -> int:
         if packable.type == ChunkType.Data:
@@ -133,22 +131,21 @@ class RawChunkSerializer(StreamSerializer[AnyRawChunk]):
             raise NotImplementedError
 
 
-# @dataclass
-# class RawChunkySerializer(StreamSerializer[RawChunky]):
+raw_chunk_serializer = RawChunkSerializer(chunk_header_serializer)
+
 
 @dataclass
 class APISerializer(_abc.APISerializer[Chunky]):
-    version:Version
+    version: Version
     # _chunky_meta_serializer:StreamSerializer[] # NO META in v1.1
-    _chunk_serializer: RawChunkSerializer
-    _chunky_meta_serializer: StreamSerializer[ChunkyMetadata]
+    chunk_serializer: RawChunkSerializer
 
     def read(self, stream: BinaryIO, lazy: bool = False) -> Chunky:
         MagicWord.read_magic_word(stream)
         version = Version.unpack(stream)
         if version != self.version:
             raise VersionMismatchError(version,self.version)
-        meta = self._chunky_meta_serializer.unpack(stream)
+        # meta = None #
         start = stream.tell()
         stream.seek(0, 2)  # jump to end
         end = stream.tell()
@@ -156,7 +153,7 @@ class APISerializer(_abc.APISerializer[Chunky]):
         folders: List[FolderChunk] = []
         data_chunks: List[RawDataChunk] = []
         while stream.tell() < end:
-            chunk = self._chunk_serializer.unpack(stream)
+            chunk = self.chunk_serializer.unpack(stream)
             if chunk.type == ChunkType.Data:
                 data_chunks.append(chunk)
             elif chunk.type == ChunkType.Folder:
@@ -179,39 +176,17 @@ class APISerializer(_abc.APISerializer[Chunky]):
                             dchunk._lazy_info = None
                         else:
                             raise NotImplementedError
-        return Chunky(meta, folders, data_chunks)
+        return Chunky(None, folders, data_chunks)
 
     def write(self, stream: BinaryIO, chunky: Chunky) -> int:
         written = 0
         written += MagicWord.write_magic_word(stream)
-        written += self._chunky_meta_serializer.pack(stream, chunky.metadata)
         # writing is so much easier than reading
         for folder in chunky.folders:
-            written += self._chunk_serializer.pack(stream, folder)
+            written += self.chunk_serializer.pack(stream, folder)
         for file in chunky.folders:
-            written += self._chunk_serializer.pack(stream, file)
+            written += self.chunk_serializer.pack(stream, file)
         return written
 
 
-@dataclass
-class ChunkyMetadataSerializer(StreamSerializer[ChunkyMetadata]):
-    layout: Struct
-
-    def unpack(self, stream: BinaryIO) -> ChunkyMetadata:
-        _36, _28, _1 = self.layout.unpack_stream(stream)
-        if (_36, _28, _1) != ChunkyMetadata.RESERVED:
-            raise NotImplementedError  # MismatchError
-        return ChunkyMetadata(_36, _28, _1)
-
-    def pack(self, stream: BinaryIO, packable: ChunkyMetadata) -> int:
-        args = packable.rsv_a_thirty_six, packable.rsv_b_twenty_eight, packable.rsv_c_one
-        if args != ChunkyMetadata.RESERVED:
-            raise NotImplementedError  # MismatchError
-        return self.layout.pack_stream(stream, *args)
-
-
-# instantiate
-chunk_header_serializer = ChunkHeaderSerializer(chunk_type_serializer, chunk_cc_serializer, Struct("<3L 2L"))
-raw_chunk_serializer = RawChunkSerializer(chunk_header_serializer)
-chunky_meta_serializer = ChunkyMetadataSerializer(Struct("3I"))
-api_serializer = APISerializer(version_v3_1,raw_chunk_serializer, chunky_meta_serializer)
+api_serializer = APISerializer(version_v1_1, raw_chunk_serializer)
