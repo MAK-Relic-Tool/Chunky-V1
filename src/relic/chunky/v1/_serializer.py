@@ -5,11 +5,11 @@ from serialization_tools.structx import Struct
 
 from relic.chunky.core import _abc
 from relic.chunky.core._abc import _ChunkLazyInfo
-from relic.chunky.core._core import ChunkType, MagicWord, Version, ChunkFourCC
-from relic.chunky.core._serializer import ChunkTypeSerializer, chunk_type_serializer, ChunkFourCCSerializer, chunk_cc_serializer
-from relic.chunky.core.errors import ChunkNameError, VersionMismatchError
+from relic.chunky.core._core import ChunkType, MagicWord, Version, ChunkFourCC, Platform
+from relic.chunky.core._serializer import ChunkTypeSerializer, chunk_type_serializer, ChunkFourCCSerializer, chunk_cc_serializer, platform_serializer, PlatformSerializer
+from relic.chunky.core.errors import ChunkNameError, VersionMismatchError, PlatformNotSupported
 from relic.chunky.core.protocols import StreamSerializer
-from relic.chunky.v1.core import ChunkMeta, RawDataChunk, FolderChunk, Chunky, version as version_v1_1
+from relic.chunky.v1.core import ChunkMeta, RawDataChunk, FolderChunk, Chunky, version
 from relic.core.errors import MismatchError
 
 
@@ -63,7 +63,7 @@ class RawChunkSerializer(StreamSerializer[AnyRawChunk]):
         metadata = ChunkMeta(header.name, header.version)
         start, size = stream.tell(), header.size
         lazy_info = _ChunkLazyInfo(start, size, stream)
-        stream.seek(size,1)
+        stream.seek(size, 1)
         return _abc.RawDataChunk(header.cc, metadata, None, None, lazy_info)
 
     def _pack_data(self, stream: BinaryIO, chunk: RawDataChunk):
@@ -90,7 +90,7 @@ class RawChunkSerializer(StreamSerializer[AnyRawChunk]):
             else:
                 raise NotImplementedError
         if start + size != stream.tell():
-            raise MismatchError("Header Size",stream.tell(),start+size)
+            raise MismatchError("Header Size", stream.tell(), start + size)
 
         return root
 
@@ -137,14 +137,19 @@ raw_chunk_serializer = RawChunkSerializer(chunk_header_serializer)
 @dataclass
 class APISerializer(_abc.APISerializer[Chunky]):
     version: Version
+    platforms: List[Platform]
     # _chunky_meta_serializer:StreamSerializer[] # NO META in v1.1
+    platform_serializer: PlatformSerializer
     chunk_serializer: RawChunkSerializer
 
     def read(self, stream: BinaryIO, lazy: bool = False) -> Chunky:
         MagicWord.read_magic_word(stream)
         version = Version.unpack(stream)
         if version != self.version:
-            raise VersionMismatchError(version,self.version)
+            raise VersionMismatchError(version, self.version)
+        platform = self.platform_serializer.unpack(stream)
+        if platform not in self.platforms:
+            raise PlatformNotSupported(platform, self.platforms)
         # meta = None #
         start = stream.tell()
         stream.seek(0, 2)  # jump to end
@@ -189,4 +194,9 @@ class APISerializer(_abc.APISerializer[Chunky]):
         return written
 
 
-api_serializer = APISerializer(version_v1_1, raw_chunk_serializer)
+api_serializer = APISerializer(
+    version,
+    [Platform.PC],
+    platform_serializer,
+    raw_chunk_serializer,
+)

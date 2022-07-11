@@ -27,4 +27,4 @@ jobs:
   mypy:
     uses: MAK-Relic-Tool/Workflows/.github/workflows/mypy.yml@main
     with:
-      package: "relic.chunky"
+      package: "relic.chunky.v1"
