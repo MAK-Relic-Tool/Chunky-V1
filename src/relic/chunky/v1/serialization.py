@@ -1,15 +1,19 @@
 from dataclasses import dataclass
-from typing import BinaryIO, Union, List, Dict
-
-from relic.chunky.core.filesystem import ChunkyFSHandler, ChunkyFS
+from typing import BinaryIO, Dict
 from serialization_tools.structx import Struct
 
-from relic.chunky.core.abstract import _ChunkLazyInfo
-from relic.chunky.core.definitions import ChunkType, MagicWord, Version, ChunkFourCC
-from relic.chunky.core.serialization import ChunkTypeSerializer, chunk_type_serializer, ChunkFourCCSerializer, chunk_cc_serializer
-from relic.chunky.core.errors import ChunkNameError, VersionMismatchError
-from relic.chunky.core.protocols import StreamSerializer
 from relic.core.errors import MismatchError
+from relic.chunky.core.definitions import ChunkType, MagicWord, Version, ChunkFourCC
+from relic.chunky.core.errors import ChunkNameError, VersionMismatchError
+from relic.chunky.core.filesystem import ChunkyFSHandler, ChunkyFS
+from relic.chunky.core.protocols import StreamSerializer
+from relic.chunky.core.serialization import (
+    ChunkTypeSerializer,
+    chunk_type_serializer,
+    ChunkFourCCSerializer,
+    chunk_cc_serializer,
+)
+
 from relic.chunky.v1.definitions import version as version_1p1
 
 
@@ -49,95 +53,9 @@ class ChunkHeaderSerializer(StreamSerializer[_ChunkHeader]):
         return written
 
 
-chunk_header_serializer = ChunkHeaderSerializer(chunk_type_serializer, chunk_cc_serializer, Struct("<3L"))
-
-
-# @dataclass
-# class RawChunkSerializer:
-#     header_serializer: ChunkHeaderSerializer
-#
-#     @staticmethod
-#     def _unpack_data(stream: BinaryIO, header: _ChunkHeader):
-#         metadata = ChunkMeta(header.name, header.version)
-#         start, size = stream.tell(), header.size
-#         lazy_info = _ChunkLazyInfo(start, size, stream)
-#         stream.seek(size, 1)
-#         return _abc.RawDataChunk(header.cc, metadata, None, None, lazy_info)
-#
-#     def _unpack_folder(self, stream: BinaryIO, header: _ChunkHeader):
-#         metadata = ChunkMeta(header.name, header.version)
-#         start, size = stream.tell(), header.size
-#         sub_folders = []
-#         data_chunks = []
-#         root = FolderChunk(header.cc, metadata, folders=sub_folders, data_chunks=data_chunks, parent=None)
-#         while start + size > stream.tell():
-#             chunk = self.unpack(stream)
-#             chunk.parent = root
-#             if chunk.type == ChunkType.Data:
-#                 data_chunks.append(chunk)
-#             elif chunk.type == ChunkType.Folder:
-#                 sub_folders.append(chunk)
-#             else:
-#                 raise NotImplementedError
-#         if start + size != stream.tell():
-#             raise MismatchError("Header Size", stream.tell(), start + size)
-#
-#         return root
-#
-#     def unpack(self, stream: BinaryIO) -> AnyRawChunk:
-#         header = self.header_serializer.unpack(stream)
-#         if header.type == ChunkType.Data:
-#             return self._unpack_data(stream, header)
-#         elif header.type == ChunkType.Folder:
-#             return self._unpack_folder(stream, header)
-#
-#     def _pack_data(self, stream: BinaryIO, chunk: RawDataChunk):
-#         data = chunk.data
-#         header = _ChunkHeader(chunk.type, chunk.fourCC, chunk.metadata.version, len(data), chunk.metadata.name)
-#         written = 0
-#         written += self.header_serializer.pack(stream, header)
-#         written += stream.write(data)
-#         return written
-#
-#     def _pack_folder(self, stream: BinaryIO, chunk: FolderChunk):
-#         jump_back = stream.tell()
-#         header = _ChunkHeader(chunk.type.value, chunk.fourCC, chunk.metadata.version, 0, chunk.metadata.name)
-#         written = 0
-#         written += self.header_serializer.pack(stream, header)
-#         size = 0
-#         for data in chunk.data_chunks:
-#             size += self._pack_data(stream, data)
-#         for folder in chunk.folders:
-#             size += self._pack_folder(stream, folder)
-#         written += size
-#
-#         # Fix size
-#         jump_to = stream.tell()
-#         stream.seek(jump_back)
-#         header.size = size
-#         self.header_serializer.pack(stream, header)  # already accounted for written; don't increase again
-#         stream.seek(jump_to)
-#
-#         return written
-#
-#     def unpack(self, stream: BinaryIO) -> AnyRawChunk:
-#         header = self.header_serializer.unpack(stream)
-#         if header.type == ChunkType.Data:
-#             return self._unpack_data(stream, header)
-#         elif header.type == ChunkType.Folder:
-#             return self._unpack_folder(stream, header)
-#
-#     def pack(self, stream: BinaryIO, packable: AnyRawChunk) -> int:
-#         raise NotImplementedError
-#         if packable.type == ChunkType.Data:
-#             return self._pack_data(stream, packable)
-#         elif packable.type == ChunkType.Folder:
-#             return self._pack_folder(stream, packable)
-#         else:
-#             raise NotImplementedError
-
-
-# raw_chunk_serializer = RawChunkSerializer(chunk_header_serializer)
+chunk_header_serializer = ChunkHeaderSerializer(
+    chunk_type_serializer, chunk_cc_serializer, Struct("<3L")
+)
 
 
 @dataclass
@@ -145,12 +63,18 @@ class ChunkyCollectionHandler:
     header_serializer: ChunkHeaderSerializer
 
     def _header2meta(self, header: _ChunkHeader) -> Dict[str, Dict[str, object]]:
-        return {"essence": {"name": header.name, "version": header.version, "4cc": str(header.cc)}}
+        return {
+            "essence": {
+                "name": header.name,
+                "version": header.version,
+                "4cc": str(header.cc),
+            }
+        }
 
-    def _slugifyname(self,name:str):
+    def _slugifyname(self, name: str):
         # Any chunk which references the EssenceFS typically names themselves the full path to the references asset
         #   unfortunately; that's a BAD name in the ChunkyFS; so we need to convert it to a safe ChunkyFS name
-        return name.replace('/','-').replace('\\','-')
+        return name.replace("/", "-").replace("\\", "-")
 
     def _unpack_data(self, fs: ChunkyFS, stream: BinaryIO, header: _ChunkHeader):
         safe_name = self._slugifyname(header.name)
@@ -178,7 +102,9 @@ class ChunkyCollectionHandler:
         elif header.type == ChunkType.Folder:
             return self._unpack_folder(fs, stream, header)
 
-    def unpack_chunk_collection(self, fs: ChunkyFS, stream: BinaryIO, start: int, end: int):
+    def unpack_chunk_collection(
+        self, fs: ChunkyFS, stream: BinaryIO, start: int, end: int
+    ):
         stream.seek(start)
         # folders: List[FolderChunk] = []
         # data_chunks: List[RawDataChunk] = []
@@ -223,6 +149,12 @@ class ChunkyFSSerializer(ChunkyFSHandler):
         return written
 
 
-_handler = ChunkyCollectionHandler(chunk_header_serializer)
+chunky_collection_handler = ChunkyCollectionHandler(chunk_header_serializer)
 
-chunky_fs_serializer = ChunkyFSSerializer(version_1p1, _handler)
+chunky_fs_serializer = ChunkyFSSerializer(version_1p1, chunky_collection_handler)
+
+
+__all__ = [
+    "ChunkyFSSerializer",
+    "chunky_fs_serializer",
+]
