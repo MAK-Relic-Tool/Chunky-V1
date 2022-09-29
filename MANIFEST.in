@@ -1,1 +1,1 @@
-include src/relic/chunky_formats/dow/fda/conv/*
+global-include py.typed
