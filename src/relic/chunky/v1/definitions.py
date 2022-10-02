@@ -1,3 +1,6 @@
+"""
+Definition of types used in Chunky V1.1
+"""
 from __future__ import annotations
 
 from relic.chunky.core.definitions import Version
