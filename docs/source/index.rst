@@ -11,7 +11,7 @@ Welcome to Relic Game Tool's documentation!
    :template: module-custom.rst
    :recursive:
 
-   relic.chunky
+   relic.chunky.v1
 
 
 Indices and tables

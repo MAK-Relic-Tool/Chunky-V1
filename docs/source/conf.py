@@ -17,12 +17,12 @@ sys.path.insert(0, os.path.abspath('../../src'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'Relic Tool - Chunky'
+project = 'Relic Tool - Chunky - V1'
 copyright = '2022, Marcus Kertesz'
 author = 'Marcus Kertesz'
 
 # The full version, including alpha/beta/rc tags
-from relic.chunky import __version__ as package_version
+from relic.chunky.v1 import __version__ as package_version
 release = package_version
 
 # -- General configuration ---------------------------------------------------
