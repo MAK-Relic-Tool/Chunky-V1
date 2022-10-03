@@ -1,0 +1,9 @@
+Name,               Offset,     Size,   C Type,             Expected
+Chunk Type,         0,          4,      char[4]  (ascii),   "* DATA
+* FOLD"
+Chunk FourCC,       4,          4,      char[4]  (ascii),
+Version,            8,          4,      UInt32-le,
+Content Size (S),   12,         4,      UInt32-le,
+Name Size (N),      16,         4,      UInt32-le,
+Name,               20,         N,      char[N]  (ascii),
+Content,            20 + N,     S,      byte[S],

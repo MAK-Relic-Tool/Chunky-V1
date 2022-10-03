@@ -1,0 +1,5 @@
+Name,               Offset,     Size,       C Type,             Expected
+Magic Word,         0,          16,         char[16]  (ascii),  Relic Chunky\\r\\n\\x1a\\0
+Version,            4,          4,          UInt32-le,          1
+Platform,           8,          4,          UInt32-le,          1
+Content,            12,         EOF - 12,   bytes,
