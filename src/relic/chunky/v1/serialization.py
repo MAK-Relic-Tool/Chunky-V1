@@ -138,7 +138,7 @@ class ChunkyCollectionHandler:
             dir_fs = fs.makedir(path)
         except DirectoryExists as exc:
             for N in range(2,100):
-                N_path = f"{safe_name}-{N}.{header.four_cc.code}"
+                N_path = f"{safe_name}-{N}.{header.cc.code}"
                 try:
                     dir_fs = fs.makedir(N_path)
                 except DirectoryExists:
