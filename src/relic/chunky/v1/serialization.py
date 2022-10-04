@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from typing import BinaryIO, Dict, cast
 
 from fs.base import FS
+from fs.errors import DirectoryExists
+from serialization_tools.structx import Struct
 from relic.chunky.core.definitions import ChunkType, MagicWord, Version, ChunkFourCC
 from relic.chunky.core.errors import ChunkNameError, VersionMismatchError
 from relic.chunky.core.filesystem import ChunkyFSHandler, ChunkyFS
@@ -131,9 +133,24 @@ class ChunkyCollectionHandler:
         path = f"{safe_name}.{header.cc.code}"
         metadata = self._header2meta(header)
         start, size = stream.tell(), header.size
-        sub_fs = fs.makedir(path)
-        sub_fs.setinfo("/", metadata)
-        self.unpack_chunk_collection(sub_fs, stream, start, start + size)
+        dir_fs = None
+        try:
+            dir_fs = fs.makedir(path)
+        except DirectoryExists as exc:
+            for N in range(2,100):
+                N_path = f"{safe_name}-{N}.{header.four_cc.code}"
+                try:
+                    dir_fs = fs.makedir(N_path)
+                except DirectoryExists:
+                    dir_fs = None
+                    continue
+                else:
+                    break
+            if dir_fs is None:
+                raise
+
+        dir_fs.setinfo("/", metadata)
+        self.unpack_chunk_collection(dir_fs, stream, start, start + size)
 
     def unpack_chunk(self, fs: FS, stream: BinaryIO) -> None:
         header = self.header_serializer.unpack(stream)
