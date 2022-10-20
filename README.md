@@ -25,3 +25,6 @@ For more information, see [pip VCS support](https://pip.pypa.io/en/stable/topics
 ```
 pip install git+https://github.com/MAK-Relic-Tool/Relic-Tool-Chunky-V1
 ```
+
+## Report A Bug / Issue
+Visit the [Issue Tracker](https://github.com/MAK-Relic-Tool/Issue-Tracker/issues)
