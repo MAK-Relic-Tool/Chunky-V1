@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import BinaryIO, Dict, cast
+from serialization_tools.structx import Struct
 
 from relic.chunky.core.definitions import ChunkFourCC
 from relic.chunky.core.errors import ChunkNameError
@@ -11,7 +12,6 @@ from relic.chunky.core.serialization import (
     chunk_cc_serializer,
     ChunkCollectionHandler, ChunkyFSSerializer
 )
-from serialization_tools.structx import Struct
 
 from relic.chunky.v1.definitions import version as version_1p1, ChunkHeader
 
@@ -29,8 +29,8 @@ class ChunkHeaderSerializer(StreamSerializer[ChunkHeader]):
         name_buffer = stream.read(name_size)
         try:
             name = name_buffer.rstrip(b"\0").decode("ascii")
-        except UnicodeDecodeError as e:
-            raise ChunkNameError(name_buffer) from e
+        except UnicodeDecodeError as exc:
+            raise ChunkNameError(name_buffer) from exc
         return ChunkHeader(chunk_type, chunk_cc, version, size, name)
 
     def pack(self, stream: BinaryIO, packable: ChunkHeader) -> int:
@@ -56,11 +56,11 @@ class _NoneHeaderSerializer(StreamSerializer[None]):
         return 0
 
 
-def _noneHeader2Meta(_) -> Dict:
+def _noneHeader2Meta(_: None) -> Dict[str, object]:
     return {}
 
 
-def _noneMeta2Header(_) -> None:
+def _noneMeta2Header(_: Dict[str, object]) -> None:
     return None
 
 
