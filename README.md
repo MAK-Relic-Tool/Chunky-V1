@@ -8,6 +8,7 @@
 [![Pytest](https://github.com/MAK-Relic-Tool/Relic-Tool-Chunky-V1/actions/workflows/pytest.yml/badge.svg)](https://github.com/MAK-Relic-Tool/Relic-Tool-Chunky-V1/actions/workflows/pytest.yml)
 [![Pylint](https://github.com/MAK-Relic-Tool/Relic-Tool-Chunky-V1/actions/workflows/pylint.yml/badge.svg)](https://github.com/MAK-Relic-Tool/Relic-Tool-Chunky-V1/actions/workflows/pylint.yml)
 [![MyPy](https://github.com/MAK-Relic-Tool/Relic-Tool-Chunky-V1/actions/workflows/mypy.yml/badge.svg)](https://github.com/MAK-Relic-Tool/Relic-Tool-Chunky-V1/actions/workflows/mypy.yml)
+[![GitHub issues by-label](https://img.shields.io/github/issues/MAK-Relic-Tool/Issue-Tracker/Chunky)](https://github.com/MAK-Relic-Tool/Issue-Tracker/issues?q=is%3Aissue+is%3Aopen+label%3AChunky)
 
 #### Disclaimer
 Not affiliated with Sega, Relic Entertainment, or THQ.
