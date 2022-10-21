@@ -20,14 +20,14 @@ def test_import_module(submodule: str):
     try:
         importlib.import_module(f"{ROOT}.{submodule}")
     except ImportError:
-        raise AssertionError(f"{submodule} is no longer exposed!")
+        raise AssertionError(f"{ROOT}.{submodule} is no longer exposed!")
 
 
 definitions__all__ = [
-    "version"
+    "version",
+    "ChunkHeader"
 ]
 serialization__all__ = [
-    "ChunkyFSSerializer",
     "chunky_fs_serializer",
 ]
 
