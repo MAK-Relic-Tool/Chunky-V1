@@ -1,0 +1,19 @@
+name: Black
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/relic/**'
+      - '.github/workflows/black.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/relic/**'
+      - '.github/workflows/black.yml'
+
+jobs:
+  black:
+    uses: MAK-Relic-Tool/Workflows/.github/workflows/black.yml@main
