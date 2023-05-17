@@ -10,7 +10,8 @@ from relic.chunky.core.serialization import (
     chunk_type_serializer,
     ChunkFourCCSerializer,
     chunk_cc_serializer,
-    ChunkCollectionHandler, ChunkyFSSerializer
+    ChunkCollectionHandler,
+    ChunkyFSSerializer,
 )
 
 from relic.chunky.v1.definitions import version as version_1p1, ChunkHeader
@@ -82,7 +83,7 @@ def _meta2chunkHeader(meta: Dict[str, object]) -> ChunkHeader:
 _chunk_collection_handler = ChunkCollectionHandler(
     header_serializer=chunk_header_serializer,
     header2meta=_chunkHeader2meta,
-    meta2header=_meta2chunkHeader
+    meta2header=_meta2chunkHeader,
 )
 
 chunky_fs_serializer = ChunkyFSSerializer(
@@ -90,7 +91,7 @@ chunky_fs_serializer = ChunkyFSSerializer(
     chunk_serializer=_chunk_collection_handler,
     header_serializer=_NoneHeaderSerializer(),
     header2meta=_noneHeader2Meta,
-    meta2header=_noneMeta2Header
+    meta2header=_noneMeta2Header,
 )
 
 __all__ = [
