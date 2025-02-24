@@ -11,17 +11,19 @@ from relic.chunky.core.serialization import (
     ChunkFourCCSerializer,
     chunk_cc_serializer,
     ChunkCollectionHandler,
-    ChunkyFSSerializer,
 )
 
 from relic.chunky.v1.definitions import version as version_1p1, ChunkHeader
-
+from relic.chunky.v1.filesystem import ChunkyFSSerializer
 
 @dataclass
 class ChunkHeaderSerializer(StreamSerializer[ChunkHeader]):
     chunk_type_serializer: ChunkTypeSerializer
     chunk_cc_serializer: ChunkFourCCSerializer
     layout: Struct
+
+    def size(self) -> int:
+        return 4 + 4 + self.layout.size
 
     def unpack(self, stream: BinaryIO) -> ChunkHeader:
         chunk_type = self.chunk_type_serializer.unpack(stream)
@@ -80,15 +82,10 @@ def _meta2chunkHeader(meta: Dict[str, object]) -> ChunkHeader:
     return ChunkHeader(name=name, cc=ChunkFourCC(fourcc), version=version, type=None, size=None)  # type: ignore
 
 
-_chunk_collection_handler = ChunkCollectionHandler(
-    header_serializer=chunk_header_serializer,
-    header2meta=_chunkHeader2meta,
-    meta2header=_meta2chunkHeader,
-)
 
 chunky_fs_serializer = ChunkyFSSerializer(
     version=version_1p1,
-    chunk_serializer=_chunk_collection_handler,
+    chunk_header_serializer=chunk_header_serializer,
     header_serializer=_NoneHeaderSerializer(),
     header2meta=_noneHeader2Meta,
     meta2header=_noneMeta2Header,
