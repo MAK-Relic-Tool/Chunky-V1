@@ -1,6 +1,77 @@
 [build-system]
 requires = [
-    "setuptools>=42",
-    "wheel"
+    "setuptools>=61.2",
 ]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "relic-tool-chunky-v1"
+authors = [
+    { name = "Marcus Kertesz" },
+]
+description = "A library to read v1.1 Chunky files"
+classifiers = [
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "relic-tool-chunky-core ~= 1.1.0",
+]
+dynamic = [
+    "version",
+]
+
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
+
+[project.urls]
+Homepage = "https://github.com/MAK-Relic-Tool/Relic-Tool-Chunky-V1"
+"Bug Tracker" = "https://github.com/MAK-Relic-Tool/Issue-Tracker/issues"
+
+[project.entry-points."relic.chunky.handler"]
+"v1.1" = "relic.chunky.v1.serialization:chunky_fs_serializer"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = [
+    "src",
+]
+namespaces = true
+
+[tool.setuptools.dynamic.version]
+attr = "relic.chunky.v1.__version__"
+
+[tool.mypy]
+mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
+warn_unused_configs = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+no_implicit_reexport = true
+strict_equality = true
+strict_concatenate = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+ignore_missing_imports = true
+ignore_errors = true
