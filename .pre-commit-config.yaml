@@ -1,0 +1,43 @@
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v2.3.0
+  hooks:
+  - id: check-yaml
+  - id: end-of-file-fixer
+  - id: trailing-whitespace
+#  - id: check-case-conflict
+  - id: check-docstring-first
+  - id: check-json
+  - id: pretty-format-json
+    args: [--autofix]
+  - id: check-merge-conflict
+  - id: check-toml
+  - id: check-yaml
+  - id: mixed-line-ending
+  - id: requirements-txt-fixer
+- repo: https://github.com/psf/black
+  rev: 24.1.1
+  hooks:
+  - id: black
+
+#- repo: https://github.com/pre-commit/mirrors-mypy
+#  rev: v1.8.0
+#  hooks:
+#  - id: mypy
+#    args: [--explicit-package-bases, --namespace-packages]
+#    additional_dependencies: [relic-tool-core, relic-tool-sga-core]
+
+- repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
+  rev: v2.12.0
+  hooks:
+  - id: pretty-format-yaml
+    args: [--autofix]
+  - id: pretty-format-toml
+    args: [--autofix]
+# Dead; last release was 2023, broken in pre-commit 4.0
+#- repo: https://github.com/PyCQA/docformatter
+#  rev: v1.7.5
+#  hooks:
+#  - id: docformatter
+#    language: python
+#    args: [--black, --in-place, --recursive]
