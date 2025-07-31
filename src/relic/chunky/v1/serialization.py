@@ -3,8 +3,8 @@ from __future__ import annotations
 from os import SEEK_END
 from typing import BinaryIO, Union, Optional
 
-from relic.chunky.core.definitions import ChunkType, ChunkFourCC
-from relic.chunky.core.serialization import ChunkyFile, ChunkyChunk, ChunkHeader
+from relic.chunky.core.definitions import ChunkType, ChunkFourCC, MagicWord
+from relic.chunky.core.serialization import ChunkHeader
 from relic.core.errors import RelicToolError
 from relic.core.lazyio import BinaryWindow, BinaryProxySerializer, BinaryProxy
 
@@ -126,7 +126,7 @@ class ChunkV1(BinaryProxySerializer, ChunkyChunk[ChunkHeaderV1]):
 
 
 class ChunkyFileV1(ChunkyFile[None, ChunkV1]):
-    ROOT_START = ChunkyFile._MAGIC_VERSION_SIZE
+    ROOT_START = MagicWord
 
     def __init__(self, parent: BinaryIO, size: Optional[int] = None):
         super().__init__(parent)

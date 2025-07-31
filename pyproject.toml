@@ -21,7 +21,7 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "relic-tool-chunky-core ~= 1.1.0",
+    "relic-tool-chunky-core >= 1.1.0",
 ]
 dynamic = [
     "version",
@@ -35,8 +35,8 @@ content-type = "text/markdown"
 Homepage = "https://github.com/MAK-Relic-Tool/Relic-Tool-Chunky-V1"
 "Bug Tracker" = "https://github.com/MAK-Relic-Tool/Issue-Tracker/issues"
 
-[project.entry-points."relic.chunky.handler"]
-"v1.1" = "relic.chunky.v1.serialization:chunky_fs_serializer"
+[project.entry-points."relic.chunky.opener"]
+"v1.1" = "relic.chunky.v1.chunkyfs.opener:ChunkyFSV1Opener"
 
 [tool.setuptools]
 include-package-data = true
