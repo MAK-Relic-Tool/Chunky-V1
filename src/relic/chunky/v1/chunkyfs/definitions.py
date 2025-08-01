@@ -485,7 +485,7 @@ class ChunkyFSV1(ChunkyFS):
 
     def _load_lazy(self, file: ChunkyFileV1) -> None:
         def _load_lazy_entry(
-            chunk: ChunkV1, start: int, size: int, parent: Optional[_Entry], cc_count_map:dict[ChunkFourCC,int]
+            chunk: ChunkV1, parent: Optional[_Entry], cc_count_map:dict[ChunkFourCC,int]
         ) -> _LazyEntry:
             header = chunk.header
             is_file = header.type == ChunkType.DATA
@@ -493,27 +493,32 @@ class ChunkyFSV1(ChunkyFS):
             fp = cast(BinaryIO, self._fp)
             cc_count = cc_count_map.get(header.cc, 0)
             cc_count_map[header.cc] = cc_count + 1
+            safe_cc = header.cc.code.replace("\0","") # some CC are 3 character codes with a null character
+            blob_fp, blob_start, blob_size = chunk._blob_ptr
             entry = _LazyEntry(
                 ResourceType.file if is_file else ResourceType.directory,
-                str(cc_count),
+                f"{cc_count}.{safe_cc}",
                 header.cc,
                 header.version,
-                fp,
-                start,
-                size,
+                blob_fp,
+                blob_start,
+                blob_size,
                 parent,
                 header.name
             )
             if not is_file:
-                sub_start = 0
+                # sub_start = 0
                 child_cc_count_map = {}
                 for child in chunk.children:
-                    _load_lazy_entry(child, start + sub_start, child.total_size, entry, child_cc_count_map)
-                    sub_start += child.total_size
+                    child = _load_lazy_entry(child, entry, child_cc_count_map)
+                    entry.add_child(child)
+                    # sub_start += child.total_size
             return entry
 
         root_child = _load_lazy_entry(
-            file.root, file.ROOT_START, file.root.total_size, self._root, {}
+            file.root,
+            # file.ROOT_START, file.root.total_size,
+            self._root, {}
         )
         self._root.add_child(root_child)
 
@@ -542,7 +547,7 @@ class ChunkyFSV1(ChunkyFS):
             remaining = parts[-1]
             parts = parts[:-1]
 
-        if len(parts) > 0 and parts[0] == "/":
+        if len(parts) > 0 and parts[0] in ["/","./"]:
             parts = parts[1:]
 
         cur = self._root
