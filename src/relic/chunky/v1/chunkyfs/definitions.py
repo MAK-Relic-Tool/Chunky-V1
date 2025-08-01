@@ -49,9 +49,11 @@ class _Entry:
         fourcc: ChunkFourCC | None,
         version: int | None,
         openable: bool = False,
+        header_name:str=None
     ) -> None:
         self._resource_type = resource_type
         self._name = name
+        self._header_name = header_name
 
         self._4cc = fourcc
         self._version = version
@@ -128,6 +130,7 @@ class _Entry:
                 "4cc", self._4cc.code if self._4cc is not None else None
             )
             self._4cc = ChunkFourCC(cc) if cc is not None else None
+            self._header_name = info["essence"].get("name", self._name)
 
     def _get_info_basic(self) -> dict[str, object]:
         return {
@@ -191,6 +194,7 @@ class _MemEntry(_Entry):
         fourcc: ChunkFourCC | None,
         version: int | None,
         data: Optional[bytes] = None,
+        header_name:Optional[str]=None
     ):
         super().__init__(
             resource_type,
@@ -236,8 +240,10 @@ class _LazyEntry(_Entry):
         blob_start: int,
         blob_size: int,
         parent_backreference: _Entry | None = None,
+        header_name: Optional[str]=None
+
     ):
-        super().__init__(resource_type, name, fourcc, version, openable=True)
+        super().__init__(resource_type, name, fourcc, version, openable=True, header_name=header_name)
         self._fp = fp
         self._fp_ptr: Optional[int] = None
         self._start = blob_start
@@ -296,7 +302,7 @@ class _LazyEntry(_Entry):
         else:
             data = None
         return _MemEntry(
-            self._resource_type, self._name, self._4cc, self._version, data
+            self._resource_type, self._name, self._4cc, self._version, data, self._header_name
         )
 
 
@@ -345,7 +351,7 @@ class ChunkyFileWriter:
 
     def _write_fs_chunk_generic(self, chunkyfs: FS, child: str) -> None:
         info: Info = chunkyfs.getinfo(child, ["essence"])
-        name = info.name
+        name = info.get("essence","name")
         _fourcc = info.get("essence", "4cc")
         fourcc = ChunkFourCC(_fourcc)
         version = info.get("essence", "version")
@@ -442,12 +448,12 @@ class ChunkyFileWriter:
                 with entry.openbin() as r:
                     chunk_copy(r, self._writer)
             else:  # Mem Folder
-                with self._write_folder_chunk(entry._4cc, entry.name, entry._version):  # type: ignore
+                with self._write_folder_chunk(entry._4cc, entry._header_name, entry._version):  # type: ignore
                     for child in entry.children.values():
                         self._write_fs_chunk_fast(child)
         else:
             with entry.openbin() as r:
-                self._write_file_chunk(entry._4cc, entry.name, entry._version, r)  # type: ignore
+                self._write_file_chunk(entry._4cc, entry._header_name, entry._version, r)  # type: ignore
 
 
 class ChunkyFSV1(ChunkyFS):
@@ -479,31 +485,35 @@ class ChunkyFSV1(ChunkyFS):
 
     def _load_lazy(self, file: ChunkyFileV1) -> None:
         def _load_lazy_entry(
-            chunk: ChunkV1, start: int, size: int, parent: Optional[_Entry]
+            chunk: ChunkV1, start: int, size: int, parent: Optional[_Entry], cc_count_map:dict[ChunkFourCC,int]
         ) -> _LazyEntry:
             header = chunk.header
             is_file = header.type == ChunkType.DATA
 
             fp = cast(BinaryIO, self._fp)
+            cc_count = cc_count_map.get(header.cc, 0)
+            cc_count_map[header.cc] = cc_count + 1
             entry = _LazyEntry(
                 ResourceType.file if is_file else ResourceType.directory,
-                header.name,
+                str(cc_count),
                 header.cc,
                 header.version,
                 fp,
                 start,
                 size,
                 parent,
+                header.name
             )
             if not is_file:
                 sub_start = 0
+                child_cc_count_map = {}
                 for child in chunk.children:
-                    _load_lazy_entry(child, start + sub_start, child.total_size, entry)
+                    _load_lazy_entry(child, start + sub_start, child.total_size, entry, child_cc_count_map)
                     sub_start += child.total_size
             return entry
 
         root_child = _load_lazy_entry(
-            file.root, file.ROOT_START, file.root.total_size, self._root
+            file.root, file.ROOT_START, file.root.total_size, self._root, {}
         )
         self._root.add_child(root_child)
 
