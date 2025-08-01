@@ -58,6 +58,10 @@ class ChunkyFSV1Opener(ChunkyFsOpenerPlugin):
             handle.close()
             raise
 
+    def open_bin(self, bin:BinaryIO) -> ChunkyFSV1:
+        return ChunkyFSV1(
+            bin, True,
+        )
 
 __all__ = [
     "ChunkyFSV1Opener",

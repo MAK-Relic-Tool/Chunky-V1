@@ -277,6 +277,8 @@ class _LazyEntry(_Entry):
         self._mark_unopenable()
 
     def _get_info_lazy(self) -> dict[str, object]:
+        # couldnt we just seek the parent ptr to start and then add start?
+        # Even then, this requires that _fp be the absolute ptr to the file
         if self._fp_ptr is None:
             with self.openbin() as tmp:
                 old = self._fp.tell()
@@ -485,7 +487,7 @@ class ChunkyFSV1(ChunkyFS):
 
     def _load_lazy(self, file: ChunkyFileV1) -> None:
         def _load_lazy_entry(
-            chunk: ChunkV1, parent: Optional[_Entry], cc_count_map:dict[ChunkFourCC,int]
+            chunk: ChunkV1, parent: Optional[_Entry], cc_count_map:dict[ChunkFourCC,int], start:int
         ) -> _LazyEntry:
             header = chunk.header
             is_file = header.type == ChunkType.DATA
@@ -494,31 +496,37 @@ class ChunkyFSV1(ChunkyFS):
             cc_count = cc_count_map.get(header.cc, 0)
             cc_count_map[header.cc] = cc_count + 1
             safe_cc = header.cc.code.replace("\0","") # some CC are 3 character codes with a null character
-            blob_fp, blob_start, blob_size = chunk._blob_ptr
+            # we cant cheat by using blob_fp/blob_start/blob_size as is; lazy entry needs all ptrs to be relative to the root fp
+            # we CAN cheat by using them to simplify our logic; blob_start + blob_size is the total size of the chunk
+            _, blob_start, blob_size = chunk._blob_ptr
             entry = _LazyEntry(
                 ResourceType.file if is_file else ResourceType.directory,
                 f"{cc_count}.{safe_cc}",
                 header.cc,
                 header.version,
-                blob_fp,
-                blob_start,
+                fp,
+                start + blob_start,
                 blob_size,
                 parent,
                 header.name
             )
             if not is_file:
-                # sub_start = 0
                 child_cc_count_map = {}
-                for child in chunk.children:
-                    child = _load_lazy_entry(child, entry, child_cc_count_map)
+                child_offset = 0
+                for child_chunk in chunk.children:
+                    child = _load_lazy_entry(
+                        child_chunk,
+                        entry, child_cc_count_map,
+                        start + blob_start + child_offset # start is the start of this chunk, blob_start is the start of the blbo of this chunk (where we read the first child) and child_offset is the # of bytes read so far
+                    )
                     entry.add_child(child)
-                    # sub_start += child.total_size
+                    child_offset += child_chunk.total_size
             return entry
 
         root_child = _load_lazy_entry(
             file.root,
-            # file.ROOT_START, file.root.total_size,
-            self._root, {}
+            self._root, {},
+            file.ROOT_START
         )
         self._root.add_child(root_child)
 
