@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-import os
-from dataclasses import dataclass
-from io import BytesIO
 from os import SEEK_END
 from typing import BinaryIO, Union, Optional
 
 from relic.chunky.core.definitions import ChunkType, ChunkFourCC, MAGIC_WORD
 from relic.chunky.core.serialization import ChunkHeader, VersionSerializer
-from relic.core.errors import RelicToolError, MismatchError
+from relic.core.errors import RelicToolError
 from relic.core.lazyio import BinaryWindow, BinaryProxySerializer, BinaryProxy
 
 
@@ -119,10 +116,10 @@ class ChunkV1(BinaryProxySerializer):
             children = []
             stream, blob_start, blob_size = self._blob_ptr
             while read < blob_size:
-                # Binary window doesnt ensure that reads stay within the chunk, todo; fix?
-                child = ChunkV1(
-                    BinaryWindow(stream, blob_start + read, blob_size - read)
-                )
+                peek_window = BinaryWindow(stream, blob_start + read, blob_size - read)
+                peek_header = ChunkHeaderV1(peek_window)
+                chunk_size = peek_header.name_size + ChunkHeaderV1.Meta.FIXED_SIZE + peek_header.size
+                child = ChunkV1(BinaryWindow(stream,blob_start+read,chunk_size))
                 children.append(child)
                 read += child.total_size
             self._child_cache = children
