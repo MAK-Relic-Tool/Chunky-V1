@@ -51,7 +51,8 @@ class ChunkyFSV1Opener(ChunkyFsOpenerPlugin):
             handle: BinaryIO = open(parse_result.resource, fmode)  # type: ignore
             return ChunkyFSV1(
                 handle,
-                # parse_handle=exists, editable=writeable
+                parse_handle=exists,
+                #editable=writeable
             )
         except:
             handle.close()

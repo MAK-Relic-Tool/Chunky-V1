@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import os
+from dataclasses import dataclass
+from io import BytesIO
 from os import SEEK_END
 from typing import BinaryIO, Union, Optional
 
-from relic.chunky.core.definitions import ChunkType, ChunkFourCC, MagicWord
-from relic.chunky.core.serialization import ChunkHeader
-from relic.core.errors import RelicToolError
+from relic.chunky.core.definitions import ChunkType, ChunkFourCC, MAGIC_WORD
+from relic.chunky.core.serialization import ChunkHeader, VersionSerializer
+from relic.core.errors import RelicToolError, MismatchError
 from relic.core.lazyio import BinaryWindow, BinaryProxySerializer, BinaryProxy
 
 
@@ -84,7 +87,7 @@ class ChunkHeaderV1(ChunkHeader, BinaryProxySerializer):
         self._serializer.int.write(value, *self.Meta.BLOB_SIZE, **self.Meta.INT_FORMAT)  # type: ignore
 
 
-class ChunkV1(BinaryProxySerializer, ChunkyChunk[ChunkHeaderV1]):
+class ChunkV1(BinaryProxySerializer):
     def __init__(self, stream: Union[BinaryIO, BinaryProxy]):
         super().__init__(stream)
         self._header = ChunkHeaderV1(stream)
@@ -114,8 +117,9 @@ class ChunkV1(BinaryProxySerializer, ChunkyChunk[ChunkHeaderV1]):
         if self._child_cache is None:
             read = 0
             children = []
-            while read < self._terminal:
-                stream, blob_start, blob_size = self._blob_ptr
+            stream, blob_start, blob_size = self._blob_ptr
+            while read < blob_size:
+                # Binary window doesnt ensure that reads stay within the chunk, todo; fix?
                 child = ChunkV1(
                     BinaryWindow(stream, blob_start + read, blob_size - read)
                 )
@@ -125,8 +129,8 @@ class ChunkV1(BinaryProxySerializer, ChunkyChunk[ChunkHeaderV1]):
         return self._child_cache
 
 
-class ChunkyFileV1(ChunkyFile[None, ChunkV1]):
-    ROOT_START = MagicWord
+class ChunkyFileV1(BinaryProxySerializer):
+    ROOT_START = len(MAGIC_WORD) + VersionSerializer._SIZE
 
     def __init__(self, parent: BinaryIO, size: Optional[int] = None):
         super().__init__(parent)
