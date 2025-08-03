@@ -136,14 +136,19 @@ class ChunkyFileV1(BinaryProxySerializer):
             size = parent.seek(0, SEEK_END)
             parent.seek(now)
         size -= self.ROOT_START
-        self._root = ChunkV1(
-            BinaryWindow(parent, self.ROOT_START, size, name="Root Chunk")
-        )
+        read = 0
+        self._chunks = [] 
+        while read < size:            
+            peek_chunk = ChunkV1(BinaryWindow(parent, self.ROOT_START + read, size - read))
+            chunk = ChunkV1(BinaryWindow(parent, self.ROOT_START + read, peek_chunk.total_size))
+            read += peek_chunk.total_size 
+            self._chunks.append(chunk)
+        
 
     @property
     def header(self) -> None:
         return None
 
     @property
-    def root(self) -> ChunkV1:
-        return self._root
+    def chunks(self) -> list[ChunkV1]:
+        return self._chunks

@@ -486,6 +486,19 @@ class ChunkyFSV1(ChunkyFS):
                 self._unlazy()
 
     def _load_lazy(self, file: ChunkyFileV1) -> None:
+        def _load_lazy_children(chunk: ChunkV1, parent: _Entry, blob_start:int):
+            child_cc_count_map = {}
+            child_offset = 0
+            for child_chunk in chunk.children:
+                child = _load_lazy_entry(
+                    child_chunk,
+                    parent, 
+                    child_cc_count_map,
+                    blob_start + child_offset  # blob_start is the start of the blob of the parent chunk (where we read the first child) and child_offset is the # of bytes read so far
+                )
+                parent.add_child(child)
+                child_offset += child_chunk.total_size
+        
         def _load_lazy_entry(
             chunk: ChunkV1, parent: Optional[_Entry], cc_count_map:dict[ChunkFourCC,int], start:int
         ) -> _LazyEntry:
@@ -511,24 +524,18 @@ class ChunkyFSV1(ChunkyFS):
                 header.name
             )
             if not is_file:
-                child_cc_count_map = {}
-                child_offset = 0
-                for child_chunk in chunk.children:
-                    child = _load_lazy_entry(
-                        child_chunk,
-                        entry, child_cc_count_map,
-                        start + blob_start + child_offset # start is the start of this chunk, blob_start is the start of the blbo of this chunk (where we read the first child) and child_offset is the # of bytes read so far
-                    )
-                    entry.add_child(child)
-                    child_offset += child_chunk.total_size
+                _load_lazy_children(chunk,entry,start+blob_start)
             return entry
 
-        root_child = _load_lazy_entry(
-            file.root,
-            self._root, {},
-            file.ROOT_START
-        )
-        self._root.add_child(root_child)
+        root_cc_map = {}
+        read = 0
+        for chunk in file.chunks:
+            child = _load_lazy_entry(chunk,self._root,root_cc_map,read + file.ROOT_START)
+            # dangerous; assumes chunks are in file-order
+            read += chunk.total_size
+            self._root.add_child(child)
+
+
 
     def _unlazy(self) -> None:
         if self._lazy_file is None:
